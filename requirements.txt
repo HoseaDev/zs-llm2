@@ -1,0 +1,31 @@
+# ==================== Text-to-SQL项目依赖 ====================
+
+# Core LangChain packages
+langchain==1.0.3
+langchain-core==1.0.3
+langchain-community==0.4.1
+langchain-openai==1.0.2
+
+# Database
+pymysql==1.1.2
+sqlalchemy==2.0.44
+
+# Security & Encryption
+cryptography>=46.0.0
+
+# Configuration
+python-dotenv==1.2.1
+
+# Data validation
+pydantic==2.12.4
+pydantic-settings==2.11.0
+
+# Optional: for better performance
+numpy>=2.3.0
+
+# ==================== 说明 ====================
+# 安装方法:
+# pip install -r requirements.txt
+#
+# 或使用项目的conda环境:
+# ./.conda/bin/pip install -r requirements.txt
