@@ -17,6 +17,490 @@ from dataclasses import dataclass
 # 加载.env文件
 load_dotenv()
 
+# ==================== 数据映射和格式化 ====================
+
+class DataMapper:
+    """数据映射器 - 将数字代码转换为可读文本"""
+
+    # 状态映射（完整版）
+    STATE_MAPPING = {
+        1: "未审核时发送人撤回",
+        2: "未接受时发送人撤回",
+        3: "审核未通过",
+        4: "拒绝",
+        5: "任务超时未接受自动拒绝",
+        6: "任务超时未审核自动拒绝",
+        7: "申请撤回",
+        101: "同意撤回",
+        102: "不同意撤回",
+        10: "新建",
+        11: "待审核",
+        12: "审核通过",
+        13: "待接受",
+        14: "接受",
+        20: "接收人撤回申请",
+        21: "接收人申请内容变更",
+        22: "发送人同意内容变更",
+        23: "发送人不同意内容变更",
+        24: "审核人同意内容变更",
+        25: "审核人不同意内容变更",
+        26: "接收人申请延期",
+        27: "发送人同意延期",
+        28: "发送人不同意延期",
+        29: "审核人同意延期",
+        30: "审核人不同意延期",
+        31: "接收人申请终止",
+        32: "发送人同意终止",
+        33: "发送人不同意终止",
+        34: "审核人同意终止",
+        35: "审核人不同意终止",
+        40: "发送人撤回申请",
+        41: "发送人申请变更",
+        42: "发送人变更申请审核通过",
+        43: "发送人变更申请审核未通过",
+        44: "接收人同意发送人申请变更",
+        45: "接收人不同意发送人申请变更",
+        46: "发送人申请延期",
+        47: "发送人延期申请审核通过",
+        48: "发送人延期申请审核未通过",
+        49: "接收人同意发送人延期",
+        50: "接收人不同意发送人延期",
+        51: "发送人申请终止",
+        52: "发送人终止申请审核通过",
+        53: "发送人终止申请审核未通过",
+        54: "接收人同意发送人申请终止",
+        55: "接收人不同意发送人申请终止",
+        60: "验收未通过要求返工",
+        61: "申请验收",
+        70: "已验收(按时完工)",
+        71: "已验收(逾期完工)",
+        72: "已验收(超时自动验收)",
+        73: "结案(发送人)",
+        80: "任务终止",
+        81: "人员退出任务终止",
+    }
+
+    # 单据类型映射（完整版）
+    BILL_TYPE_MAPPING = {
+        # 老版本
+        0: "无",
+        1: "生产入库",
+        2: "采购入库",
+        3: "生产出库",
+        4: "销售出库",
+        5: "调入",
+        6: "调出",
+        7: "库房报损",
+        8: "交款",
+        9: "付款",
+        10: "借款",
+        11: "报账",
+        12: "销售退款",
+        13: "采购退货",
+        14: "团队初始录入",
+        15: "团队人员初始录入",
+        16: "销售发货",
+        17: "销售收款",
+        18: "销售平账",
+        19: "采购收货",
+        20: "采购付款",
+        21: "采购平账",
+        22: "修改品名",
+        23: "合并品名",
+        24: "更新组件",
+        25: "团队人员库存报损",
+        26: "库房辅料报损",
+        27: "人员辅料报损",
+        30: "付款(发工资)",
+        # 新版本
+        1001: "仓库初始入库",
+        1002: "个人初始入库",
+        1101: "仓库盘点",
+        1102: "个人盘点",
+        1201: "仓库调货",
+        1301: "修改品名",
+        1302: "修改数量",
+        1303: "修改组件单",
+        1304: "研发任务",
+        1401: "仓库物料报损",
+        1402: "仓库物料核销",
+        1403: "个人物料报损",
+        1404: "个人物料核销",
+        1405: "固定资产报损",
+        1501: "固定资产领料",
+        1502: "固定资产销售",
+        1503: "固定资产变更",
+        1504: "固定资产初始入库",
+        1505: "固定资产折旧",
+        1601: "采购入库",
+        1602: "采购收货",
+        1603: "采购付款",
+        1604: "采购退货",
+        1605: "采购平账",
+        1606: "采购修改",
+        1607: "生产计划",
+        1608: "备料计划",
+        1609: "请购任务",
+        1610: "采购挂账",
+        1611: "报价",
+        1701: "销售出库",
+        1702: "销售发货",
+        1703: "销售收款",
+        1704: "销售退款",
+        1705: "销售平账",
+        1706: "销售挂账",
+        1707: "销售计划",
+        1801: "生产出库",
+        1802: "调入",
+        1901: "生产入库",
+        1902: "调出",
+        1903: "拆件入库",
+        1904: "物品转换",
+        2001: "付款",
+        2002: "交款",
+        2003: "报账",
+        2004: "借款",
+        2005: "发工资",
+        2007: "内部转账",
+        2008: "货币转换",
+        2009: "付款退款",
+        2010: "交款退款",
+        2101: "售后发货",
+        2102: "售后报损",
+        2103: "售后上门服务",
+        2201: "罚款申述",
+        2301: "模拟打卡",
+        2302: "建立团队仓库",
+        2303: "建立团队账户",
+        2304: "学习报账",
+        2305: "模拟报账",
+        2306: "学习交款",
+        2307: "模拟交款",
+        2308: "学习付款",
+        2309: "模拟付款",
+        2310: "引导-设置职务",
+        2311: "引导-导入库存",
+        2312: "引导-设置组件单",
+        2313: "引导-单据识别匹配",
+        2314: "引导-发布生产计划",
+        2315: "引导-按计划采购",
+        2316: "引导-创建收支类型",
+        2317: "引导-设置工作态度/任务罚款",
+        2318: "引导-设置团队数据应收款预警",
+        2319: "引导-设置入库异常",
+        2320: "引导-设置库存预警",
+        2321: "引导-导入供应商",
+        2322: "引导-导入客户",
+        2323: "引导-设置团队工作时间",
+        2401: "代理任务",
+        2402: "代理任务接管",
+        2501: "分发任务",
+    }
+
+    @classmethod
+    def get_state_text(cls, state_code: int) -> str:
+        """获取状态文本（不显示数字）"""
+        return cls.STATE_MAPPING.get(state_code, f"未知状态({state_code})")
+
+    @classmethod
+    def get_bill_type_text(cls, bill_type_code: int) -> str:
+        """获取单据类型文本（不显示数字）"""
+        return cls.BILL_TYPE_MAPPING.get(bill_type_code, f"未知类型({bill_type_code})")
+
+
+class ResultFormatter:
+    """查询结果格式化器 - 美化显示结果"""
+
+    @staticmethod
+    def format_datetime(dt_value) -> str:
+        """格式化日期时间"""
+        if not dt_value:
+            return "无"
+
+        # 如果是字符串，尝试解析
+        if isinstance(dt_value, str):
+            # ISO格式：2025-11-06T10:24:12
+            if 'T' in dt_value:
+                dt_value = dt_value.replace('T', ' ')
+            # 去掉毫秒部分
+            return dt_value.split('.')[0]
+
+        # 如果是 datetime 对象
+        from datetime import datetime
+        if isinstance(dt_value, datetime):
+            return dt_value.strftime('%Y-%m-%d %H:%M:%S')
+
+        return str(dt_value)
+
+    @staticmethod
+    def format_project_result(row: dict) -> str:
+        """
+        格式化 o_project 表的查询结果
+
+        Args:
+            row: 查询结果行
+
+        Returns:
+            格式化后的字符串
+        """
+        lines = []
+
+        # 标题（主要信息）
+        if 'title' in row:
+            lines.append(f"📋 {row['title']}")
+
+        # ID
+        if 'id' in row:
+            lines.append(f"   ID: {row['id']}")
+
+        # 单据类型（只显示文字）
+        if 'bill_type' in row:
+            bill_type_text = DataMapper.get_bill_type_text(row['bill_type'])
+            lines.append(f"   类型: {bill_type_text}")
+
+        # 状态（只显示文字）
+        if 'state' in row:
+            state_text = DataMapper.get_state_text(row['state'])
+            lines.append(f"   状态: {state_text}")
+
+        # 创建人
+        if 'creator_name' in row:
+            lines.append(f"   创建人: {row['creator_name']}")
+        elif 'creator_uid' in row:
+            lines.append(f"   创建人ID: {row['creator_uid']}")
+
+        # 创建时间
+        if 'createtime' in row:
+            createtime = ResultFormatter.format_datetime(row['createtime'])
+            lines.append(f"   创建时间: {createtime}")
+
+        # 截止时间
+        if 'deadline' in row:
+            deadline = ResultFormatter.format_datetime(row['deadline'])
+            lines.append(f"   截止时间: {deadline}")
+
+        # 单据编码
+        if 'bill_code' in row:
+            lines.append(f"   单据编码: {row['bill_code']}")
+
+        # 其他字段（排除已显示的）
+        exclude_fields = {'id', 'title', 'bill_type', 'state', 'creator_name',
+                         'creator_uid', 'createtime', 'deadline', 'team_id'}
+        for key, value in row.items():
+            if key not in exclude_fields and value is not None:
+                # 格式化日期类型字段
+                if 'time' in key.lower() or 'date' in key.lower():
+                    value = ResultFormatter.format_datetime(value)
+                lines.append(f"   {key}: {value}")
+
+        return '\n'.join(lines)
+
+    @staticmethod
+    def format_result_smart(row: dict) -> str:
+        """
+        智能格式化结果（根据字段自动判断表类型）
+
+        Args:
+            row: 查询结果行
+
+        Returns:
+            格式化后的字符串
+        """
+        # 如果包含 o_project 的典型字段，使用 project 格式化
+        if 'bill_type' in row or ('title' in row and 'state' in row and 'createtime' in row):
+            return ResultFormatter.format_project_result(row)
+
+        # 默认格式化
+        lines = []
+        for key, value in row.items():
+            if value is None:
+                continue
+
+            # 格式化日期字段
+            if 'time' in key.lower() or 'date' in key.lower():
+                value = ResultFormatter.format_datetime(value)
+
+            # 格式化状态字段（只显示文字）
+            elif key == 'state' and isinstance(value, int):
+                value = DataMapper.get_state_text(value)
+
+            # 格式化单据类型字段（只显示文字）
+            elif key == 'bill_type' and isinstance(value, int):
+                value = DataMapper.get_bill_type_text(value)
+
+            lines.append(f"   {key}: {value}")
+
+        return '\n'.join(lines) if lines else "   (无数据)"
+
+
+class TableFieldConfig:
+    """
+    表字段配置 - 定义每个表查询时应返回哪些字段
+
+    使用方法：
+    1. 在 FIELD_CONFIGS 中添加表配置
+    2. System Prompt 会自动使用这些配置
+    3. LLM 生成的 SQL 会包含这些字段
+    """
+
+    # 表字段配置字典
+    # 格式: {表名: {"fields": [字段列表], "description": "说明"}}
+    FIELD_CONFIGS = {
+        'o_project': {
+            'fields': [
+                'id',
+                'title',
+                'bill_type',
+                'state',
+                'createtime',
+                'deadline',
+                'creator_uid',
+                "bill_code"
+            ],
+            'joins': {
+                'creator_name': {
+                    'join': 'LEFT JOIN o_user ON o_project.creator_uid = o_user.id',
+                    'select': 'o_user.real_name as creator_name'
+                }
+            },
+            'description': '任务/项目表，必须包含单据类型、状态、创建人单据编码信息'
+        },
+        'o_user_clock': {
+            'fields': [
+                'id',
+                'uid',
+                'start_time',
+                'end_time'
+            ],
+            'joins': {
+                'user_name': {
+                    'join': 'LEFT JOIN o_user ON o_user_clock.uid = o_user.id',
+                    'select': 'o_user.real_name as user_name'
+                }
+            },
+            'description': '打卡记录表，包含打卡时间和用户信息'
+        },
+        'o_user': {
+            'fields': [
+                'id',
+                'real_name',
+                'mobile',
+                'team_id',
+                'position',
+                'status',
+            ],
+            'description': '用户表，包含基本信息'
+        },
+        'o_team': {
+            'fields': [
+                'id',
+                'name',
+                'leader_uid',
+                'create_time',
+                'status',
+            ],
+            'joins': {
+                'leader_name': {
+                    'join': 'LEFT JOIN o_user ON o_team.leader_uid = o_user.id',
+                    'select': 'o_user.real_name as leader_name'
+                }
+            },
+            'description': '团队表，包含团队名称和负责人'
+        },
+        # 在这里添加更多表的配置...
+        # 例如：
+        # 'o_bill_team_customer': {
+        #     'fields': ['id', 'name', 'contact', 'mobile', 'address'],
+        #     'description': '客户表'
+        # },
+    }
+
+    @classmethod
+    def get_table_config(cls, table_name: str) -> Optional[Dict]:
+        """
+        获取指定表的字段配置
+
+        Args:
+            table_name: 表名
+
+        Returns:
+            配置字典，如果没有配置则返回 None
+        """
+        return cls.FIELD_CONFIGS.get(table_name)
+
+    @classmethod
+    def get_select_fields(cls, table_name: str) -> Optional[List[str]]:
+        """
+        获取表应该 SELECT 的字段列表
+
+        Args:
+            table_name: 表名
+
+        Returns:
+            字段列表，如果没有配置则返回 None
+        """
+        config = cls.get_table_config(table_name)
+        if config:
+            return config.get('fields', [])
+        return None
+
+    @classmethod
+    def get_join_config(cls, table_name: str) -> Optional[Dict]:
+        """
+        获取表的 JOIN 配置
+
+        Args:
+            table_name: 表名
+
+        Returns:
+            JOIN 配置字典
+        """
+        config = cls.get_table_config(table_name)
+        if config:
+            return config.get('joins', {})
+        return {}
+
+    @classmethod
+    def build_field_selection_prompt(cls, table_name: str) -> str:
+        """
+        为指定表生成字段选择的 Prompt
+
+        Args:
+            table_name: 表名
+
+        Returns:
+            Prompt 字符串
+        """
+        config = cls.get_table_config(table_name)
+        if not config:
+            return ""
+
+        prompt = f"\n【{table_name} 表必须返回以下字段】\n"
+
+        # 基础字段
+        fields = config.get('fields', [])
+        prompt += f"基础字段: {', '.join(fields)}\n"
+
+        # JOIN 字段
+        joins = config.get('joins', {})
+        if joins:
+            prompt += "关联字段（需要 JOIN）:\n"
+            for field_name, join_config in joins.items():
+                prompt += f"  - {field_name}: {join_config['select']}\n"
+                prompt += f"    JOIN 语句: {join_config['join']}\n"
+
+        # 说明
+        if config.get('description'):
+            prompt += f"说明: {config['description']}\n"
+
+        return prompt
+
+    @classmethod
+    def get_all_configured_tables(cls) -> List[str]:
+        """获取所有已配置的表名列表"""
+        return list(cls.FIELD_CONFIGS.keys())
+
+
 # ==================== 权限管理 ====================
 
 @dataclass
@@ -731,6 +1215,13 @@ class TextToSQLEngine:
         """
         prompt = """你是一个专业的SQL查询生成助手。你的任务是根据用户的自然语言问题，生成准确的MySQL查询语句。
 
+【重要规则】
+1. 严格按照下方的【表字段配置】选择字段，不要随意选择
+2. 如果表有字段配置，必须包含配置中的所有基础字段
+3. 如果需要关联信息（如创建人姓名），必须使用配置中的 JOIN 语句
+4. 不要使用 SELECT *，明确列出所有需要的字段
+5. 日期时间字段直接返回，不需要格式化（系统会自动处理）
+
 """
         # 添加用户上下文信息
         if self.user_context:
@@ -760,6 +1251,23 @@ class TextToSQLEngine:
 
             schema_info = self.schema_manager.get_schema_prompt(limited_tables)
             prompt += schema_info
+
+            # 添加表字段配置信息
+            prompt += "\n" + "="*60 + "\n"
+            prompt += "【表字段配置】\n"
+            prompt += "以下表有固定的字段返回要求，查询时必须严格遵守：\n"
+
+            has_config = False
+            for table_name in limited_tables:
+                field_prompt = TableFieldConfig.build_field_selection_prompt(table_name)
+                if field_prompt:
+                    prompt += field_prompt
+                    has_config = True
+
+            if not has_config:
+                prompt += "（当前查询的表没有特殊字段配置，请根据问题选择合适的字段）\n"
+
+            prompt += "="*60 + "\n\n"
         else:
             # 如果没有相关表，给一个简短的说明
             prompt += "数据库: sczsv4.4.1 (包含206个表)\n"
@@ -976,7 +1484,11 @@ class TextToSQLApp:
                     print("\n查询结果:")
                     print("-"*60)
                     for i, row in enumerate(result['results'], 1):
-                        print(f"{i}. {json.dumps(row, ensure_ascii=False, indent=2, default=json_serializer)}")
+                        print(f"{i}.")
+                        # 使用智能格式化器美化输出
+                        formatted = ResultFormatter.format_result_smart(row)
+                        print(formatted)
+                        print()  # 空行分隔
                     print("-"*60)
                 elif result.get('error'):
                     print(f"\n错误: {result['error']}")
